@@ -1,0 +1,199 @@
+{% extends "base1.html" %}
+{% load static %}
+
+{% block title %}Data Quality Report{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/plugins/select2/select2.min.css">
+
+{{block.super}}
+{% endblock %}
+
+{% block content %}
+
+{% include "pages/top_filters.html" %}
+  <div class="row">
+  <div class="col-sm-12">
+    <div class="box">
+  <div class="box-body">
+      <table class="table table-bordered">
+      <thead>
+                <tr>
+                  <th>SN</th>
+                  <th>Outreach</th>
+                  <th>Count</th>
+                </tr>
+               
+                </thead>
+                <tbody id="table_body">
+                  
+                </tbody>
+              </table>
+              </div>
+              </div>
+  </div>
+ 
+  </div>
+
+{% endblock content %}
+
+
+{% block javascript %}
+{{block.super}}
+
+<script src="/static/plugins/select2/select2.full.min.js"></script>
+<script>
+    //Initialize Select2 Elements
+    var end_date = moment().format('MM/DD/YYYY');
+    var start_date = moment().subtract(29, 'days').format('MM/DD/YYYY');
+    var default_daterange = start_date+"-"+end_date;
+    $('#reservation').val(default_daterange);
+
+
+    $("#outreach").select2();
+    $("#source").select2();
+    $('#reservation').daterangepicker(
+{
+    locale: {
+      format: 'MM/DD/YYYY'
+    },
+    "startDate": start_date,
+    "endDate": end_date
+});
+
+$('#reservation').on('apply.daterangepicker', function(ev, picker) {
+  update_data();
+  // console.log(picker.startDate.format('MM/DD/YYYY'));
+  // console.log(picker.endDate.format('MM/DD/YYYY'));
+});
+$("#outreach, #source").on("change",function(){
+update_data();
+});
+
+
+function get_color(index){
+  var color_list = ["#800000","#FF0000","#808000","#FFFF00","#008000","#00FF00","#008080","#00FFFF","#000080"];
+  return color_list[index%9];
+}
+
+function update_data(){
+  var daterange = $('#reservation').val().split("-");
+  var start_date = daterange[0];
+  var end_date = daterange[1];
+  var outreaches = $("#outreach").val();
+  var source = $("#source").val();
+
+  if(outreaches==null)
+  {
+    outreaches = [];
+  }
+  var post_url = "/report/sms-outreach-table/";
+  var post_data = {start_date:start_date,end_date:end_date, outreaches:JSON.stringify(outreaches), source:source};
+
+  $.post(post_url,post_data, function(result){
+    update_table(JSON.parse(result));
+  });
+
+
+
+  console.log(start_date,end_date);
+}
+
+function update_table(results){
+  var html_str = "";
+  for(var i=0;i<results.length;i++){
+    var item = results[i];
+    html_str += "<tr>";
+    html_str += "<td>"+item.sn+"</td>";
+    html_str += "<td>"+item.outreach+"</td>";
+    html_str += "<td>"+item.count+"</td>";
+    html_str += "</tr>";
+  }
+  $("#table_body").html(html_str);
+}
+function generate_chart_data(outreaches)
+{
+  input = outreaches
+  var data = [];
+  for(var i=0;i<outreaches.length;i++)
+  {
+    var outreach = outreaches[i];
+    var data_points = []
+    for(var j=0;j<outreach.data_points.length;j++)
+    {
+        data_points.push({x:new Date(outreach.data_points[j].date), y:outreach.data_points[j].value});
+    }
+
+      var data_item = {
+        type: "line",
+        showInLegend: true,
+        lineThickness: 2,
+        name: outreach.name,   
+        markerType: "square",
+        color: get_color(i),
+        dataPoints: data_points
+      };
+      data.push(data_item);
+
+        
+  }
+  output = data;
+  return data;
+}
+
+
+function update_chart(data){
+  
+  var chart = new CanvasJS.Chart("chartContainer",
+    {
+
+      title:{
+        text: "Number of"+text+" reports sent from outreach center",
+        fontSize: 13
+      },
+      animationEnabled: true,
+      axisX:{
+
+        gridColor: "Silver",
+        tickColor: "silver",
+        valueFormatString: "DD/MMM"
+
+      },                        
+                        toolTip:{
+                          shared:true
+                        },
+      theme: "theme2",
+      axisY: {
+        gridColor: "Silver",
+        tickColor: "silver"
+      },
+      legend:{
+        verticalAlign: "center",
+        horizontalAlign: "right"
+      },
+      data: generate_chart_data(data),
+          legend:{
+            cursor:"pointer",
+            itemclick:function(e){
+              if (typeof(e.dataSeries.visible) === "undefined" || e.dataSeries.visible) {
+                e.dataSeries.visible = false;
+              }
+              else{
+                e.dataSeries.visible = true;
+              }
+              chart.render();
+            }
+          }
+    });
+
+chart.render();
+
+}
+
+</script>
+<script type="text/javascript" src="/static/assets/js/canvasjs.min.js"></script>
+  <script type="text/javascript">
+  update_data();
+ 
+</script>
+{% endblock  %}

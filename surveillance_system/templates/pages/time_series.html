@@ -1,0 +1,372 @@
+{% extends "base1.html" %}
+{% load static %}
+
+{% block title %}Time Series Report{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/plugins/select2/select2.min.css">
+
+{{block.super}}
+{% endblock %}
+
+{% block content %}
+
+  <div class="row">
+      <div class="col-sm-3">
+    <div class="form-group">
+                <label>Date range:</label>
+
+                <div class="input-group">
+                  <div class="input-group-addon">
+                    <i class="fa fa-calendar"></i>
+                  </div>
+                  <input type="text" class="form-control pull-right" id="date_range">
+                </div>
+                <!-- /.input group -->
+              </div>
+    </div>
+     <div class="col-sm-3">
+  
+    <div class="form-group">
+                <label>Diagnosis Group</label>
+
+                <select class="form-control select2" id="diagnosis_group" data-placeholder="Select a district" style="width: 100%;">
+               <option value="-1">All</option>
+      {% for morbidity in morbidities %}
+    
+       <option value="{{morbidity.id}}">{{morbidity.name}}</option>
+       {% endfor %}
+       
+
+     </select>
+</div>
+    
+    </div>
+
+    <div class="col-sm-2" id="district_container">
+  
+    <div class="form-group">
+                <label>District</label>
+                <select class="form-control select2" id="district" data-placeholder="Select a district" style="width: 100%;">
+                <option value="-1">All</option>
+                {% for district in districts %}
+    
+       <option value="{{district.id}}">{{district.name}}</option>
+       {% endfor %}
+
+     </select>
+</div>
+    
+    </div>
+
+     
+
+
+
+
+      <div class="col-sm-2">
+
+    <div class="form-group">
+                <label>Age Group</label>
+                <select class="form-control select2" id="age_group" data-placeholder="Select a lag" style="width: 100%;">
+                <option value="-1">All</option>
+                <option value="1">0-4</option>
+                <option value="2">4-14</option>
+                <option value="3">15-49</option>
+                <option value="4">50-64</option>
+                <option value="5">65+</option>
+               
+
+     </select>
+
+    
+    </div>
+  </div>
+
+   <div class="col-sm-2">
+
+    <div class="form-group">
+                <label>Algorithm</label>
+                <select class="form-control select2" id="algorithm" data-placeholder="Select a lag" style="width: 100%;">
+                <option value="1">EARS C1</option>
+                <option value="2">EARS C2</option>
+                <option value="3">EARS C3</option>
+               
+
+     </select>
+
+    
+    </div>
+  </div>
+
+  </div>
+
+    <div class="row">
+        <div class="col-sm-3" id="outreach_container">
+
+    <div class="form-group">
+                <label>Outreach Center</label>
+                <select class="form-control select2" id="outreach" data-placeholder="Select a outreach center" style="width: 100%;">
+                <option value="-1">All</option>
+                {% for org in organizations %}
+    
+       <option value="{{org.party.party_identifier}}">{{org.organization_name}}</option>
+       {% endfor %}
+
+     </select>
+
+    
+    </div>
+  </div>
+       <div class="col-sm-3">
+  
+    <div class="form-group">
+                <label>Diagnosis</label>
+                <select class="form-control select2" id="icd" data-placeholder="Select a district" style="width: 100%;">
+               <option value="-1">All</option>
+
+
+     </select>
+</div>
+    
+    </div>
+
+  <div class="col-sm-2" id="vdc_container">
+  
+    <div class="form-group">
+                <label>VDC</label>
+
+                <select class="form-control select2" id="vdc" data-placeholder="Select a vdc" style="width: 100%;">
+<option value="-1">All</option>
+               
+
+     </select>
+</div>
+    
+    </div>
+
+     <div class="col-sm-2">
+  
+    <div class="form-group">
+                <label>Sex</label>
+                <select class="form-control select2" id="gender" data-placeholder="Select a district" style="width: 100%;">
+      <option value="-1">All</option>
+       <option value="M">Male</option>
+       <option value="F">Female</option>
+       
+
+     </select>
+</div>
+    
+    </div>
+
+
+
+
+
+    <div class="col-sm-4" id="outreach_container">
+
+
+  </div>
+
+
+  <div class="row">
+  <div class="col-sm-12">
+  <div id="lag_plot" style="height: 400px; width: 100%;"></div>
+  </div>
+ 
+  </div>
+
+{% endblock content %}
+
+
+{% block javascript %}
+{{block.super}}
+
+<script src="/static/plugins/select2/select2.full.min.js"></script>
+
+<script type="text/javascript">
+      //Initialize Select2 Elements
+    var end_date = moment().format('MM/DD/YYYY');
+    var start_date = moment().subtract(29, 'days').format('MM/DD/YYYY');
+    var default_daterange = start_date+"-"+end_date;
+    $('#date_range').val(default_daterange);
+    $('#date_range').daterangepicker(
+{
+    locale: {
+      format: 'MM/DD/YYYY'
+    },
+    "startDate": start_date,
+    "endDate": end_date
+});
+
+</script>
+<script>
+
+$("#outreach, #date_range, #vdc, #gender, #age_group, #icd, #algorithm").on("change",function(){
+update_data();
+});
+
+function update_data(){
+
+  var outreach = $("#outreach").val();
+  var post_url = "/report/time-series/";
+  var daterange = $('#date_range').val().split("-");
+  var vdc= $("#vdc").val();
+  var district = $("#district").val();
+  var icd = $("#icd").val();
+  var group = $("#diagnosis_group").val();
+  var gender = $("#gender").val();
+  var age_group = $("#age_group").val();
+  var algorithm = $("#algorithm").val();
+
+  var start_date = daterange[0];
+  var end_date = daterange[1];
+
+  var post_data = {outreach:outreach, start_date:start_date, end_date:end_date};
+  post_data["vdc"] = vdc;
+  post_data["district"] = district;
+  post_data["icd"] = icd;
+  post_data["group"] = group;
+  post_data["gender"] = gender;
+  post_data["age_group"] = age_group;
+  post_data["algorithm"] = algorithm;
+
+  $.post(post_url,post_data, function(result){
+    update_chart(JSON.parse(result));
+  });
+
+}
+
+</script>
+<script>
+
+    $("#group_type").select2();
+    $("#outreach").select2();
+    $("#district").select2();
+    $("#lags").select2();
+    // $("#district_container").hide();
+    // $("#vdc_container").hide();
+
+$("#district").change(function(){
+  var selected_district = $("#district").val();
+  if(selected_district=="-1"){
+    $("#vdc").html('<option value="-1">All</option>');
+    $("#vdc").select2();
+    return;
+  }
+  var request_url = "/api/vdc-list/"+selected_district+"/"
+  $.get(request_url,function(data){
+    var options_html = '<option value="-1">All</option>';
+    var vdc_list = JSON.parse(data);
+    for(var i=0;i<vdc_list.length;i++){
+      options_html += "<option value='"+vdc_list[i].id +"'>"+vdc_list[i].name+"</option>";
+    }
+    $("#vdc").html(options_html);
+    $("#vdc").select2();
+  });
+});
+
+
+$("#diagnosis_group").change(function(){
+  var selected_group = $("#diagnosis_group").val();
+  if(selected_group=="-1"){
+    $("#icd").html('<option value="-1">All</option>');
+    $("#icd").select2();
+    return;
+  }
+
+  var request_url = "/api/icd-list/"+selected_group+"/"
+  $.get(request_url,function(data){
+    var options_html = '<option value="-1">All</option>';
+    var icd_list = JSON.parse(data);
+    for(var i=0;i<icd_list.length;i++){
+      options_html += "<option value='"+icd_list[i].id +"'>"+icd_list[i].name+"</option>";
+    }
+    $("#icd").html(options_html);
+    $("#icd").select2();
+  });
+});
+
+update_data();
+
+
+
+function generate_chart_data(data){
+  var data_points = [];
+  var labels = data.labels;
+  var values = data.values;
+
+    for(var i=0;i<labels.length;i++)
+  {
+        // if(row[i]!=0)
+    
+        data_points.push({x:new Date(labels[i]), y:values[i]});
+  }
+  var data_item = {
+        type: "line",
+        showInLegend: true,
+        lineThickness: 2,
+        name: "Time Series",   
+        markerType: "square",
+        color: "#800000",
+        dataPoints: data_points
+      };
+      return [data_item];
+}
+
+function update_chart(data){
+  var chart = new CanvasJS.Chart("lag_plot",
+    {
+
+      title:{
+        text: "Time series report",
+        fontSize: 13
+      },
+      animationEnabled: true,
+      axisX:{
+
+        gridColor: "Silver",
+        tickColor: "silver",
+        valueFormatString: ""
+
+      },                        
+                        toolTip:{
+                          shared:true
+                        },
+      theme: "theme1",
+      axisY: {
+        gridColor: "Silver",
+        tickColor: "silver"
+      },
+      legend:{
+        verticalAlign: "center",
+        horizontalAlign: "right"
+      },
+      data: generate_chart_data(data),
+          legend:{
+            cursor:"pointer",
+            itemclick:function(e){
+              if (typeof(e.dataSeries.visible) === "undefined" || e.dataSeries.visible) {
+                e.dataSeries.visible = false;
+              }
+              else{
+                e.dataSeries.visible = true;
+              }
+              chart.render();
+            }
+          }
+    });
+
+chart.render();
+
+}
+
+
+</script>
+<script type="text/javascript" src="/static/assets/js/canvasjs.min.js"></script>
+  <script type="text/javascript">
+  // update_data();
+ 
+</script>
+{% endblock  %}

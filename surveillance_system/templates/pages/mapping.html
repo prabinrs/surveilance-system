@@ -1,0 +1,434 @@
+{% extends "base1.html" %}
+{% load static %}
+
+{% block title %}Mapping{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/plugins/select2/select2.min.css">
+  <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+
+  <style>
+    #map {
+      width: 800px%;
+      height: 500px;
+    }
+
+    .info {
+      padding: 6px 8px;
+      font: 14px/16px Arial, Helvetica, sans-serif;
+      background: white;
+      background: rgba(255,255,255,0.8);
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+      border-radius: 5px;
+    }
+    .info h4 {
+      margin: 0 0 5px;
+      color: #777;
+    }
+
+    .legend {
+      text-align: left;
+      line-height: 18px;
+      color: #555;
+    }
+    .legend i {
+      width: 18px;
+      height: 18px;
+      float: left;
+      margin-right: 8px;
+      opacity: 0.7;
+    }
+  </style>
+{{block.super}}
+{% endblock %}
+
+{% block content %}
+
+  <div class="row">
+      <div class="col-sm-3">
+    <div class="form-group">
+                <label>Date range:</label>
+
+                <div class="input-group">
+                  <div class="input-group-addon">
+                    <i class="fa fa-calendar"></i>
+                  </div>
+                  <input type="text" class="form-control pull-right" id="date_range">
+                </div>
+                <!-- /.input group -->
+              </div>
+    </div>
+      <div class="col-sm-3">
+
+    <div class="form-group">
+                <label>Outreach Center</label>
+                <select class="form-control select2" id="outreach" data-placeholder="Select a outreach center" style="width: 100%;">
+                <option value="-1">All</option>
+                {% for org in organizations %}
+    
+       <option value="{{org.party.party_identifier}}">{{org.organization_name}}</option>
+       {% endfor %}
+
+     </select>
+
+    
+    </div>
+  </div>
+     <div class="col-sm-3">
+  
+    <div class="form-group">
+                <label>Diagnosis Group</label>
+                <select class="form-control select2" id="diagnosis_group" data-placeholder="Select a district" style="width: 100%;">
+               <option value="-1">All</option>
+      {% for morbidity in morbidities %}
+    
+       <option value="{{morbidity.id}}">{{morbidity.name}}</option>
+      {% endfor %}
+       
+
+     </select>
+</div>
+    
+    </div>
+
+    <div class="col-sm-3" id="district_container">
+
+    <div class="form-group">
+                <label>Diagnosis </label>
+                <select class="form-control select2" id="diagnosis" data-placeholder="Select a district" style="width: 100%;">
+                <option value="-1">All</option>
+               
+
+
+     </select>
+</div>
+    
+    </div>
+
+     
+
+
+
+
+    
+
+  </div>
+
+    <div class="row">
+        <div class="col-sm-3" id="outreach_container">
+
+  </div>
+       <div class="col-sm-3">
+  
+    
+    </div>
+
+  <div class="col-sm-3" id="vdc_container">
+  
+  
+    </div>
+
+     <div class="col-sm-3">
+ 
+    </div>
+
+
+
+
+
+    <div class="col-sm-4" id="outreach_container">
+
+
+  </div>
+
+
+  <div class="row">
+  <div class="col-sm-12">
+  <div id="map"></div>
+
+  <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+  <script src="/static/mapping/districts.json"></script>
+  <script type="text/javascript">
+
+    var map = L.map('map').setView([27.45, 84], 12);
+
+    L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpandmbXliNDBjZWd2M2x6bDk3c2ZtOTkifQ._QA7i5Mpkd_m30IGElHziw', {
+      maxZoom: 18,
+      attribution: 'Map of Nepal',
+      id: 'mapbox.light'
+    }).addTo(map);
+
+
+    // control that shows state info on hover
+    var info = L.control();
+
+    info.onAdd = function (map) {
+      this._div = L.DomUtil.create('div', 'info');
+      this.update();
+      return this._div;
+    };
+
+    info.update = function (props) {
+      if(props){
+        aa = props;
+      var is_vdc =((props.DISTRICT)?false:true);
+      var second_line = "";
+      if(is_vdc){
+        var name = props.vdc_name;
+        var vdc_code_split = props.vdc_code.split(" ");
+        var len = vdc_code_split.length;
+        var vdc_code =vdc_code_split[len-2]+vdc_code_split[len-1];
+        var count = patient_visit[vdc_code];
+        if(count==undefined){
+          count = 0;
+        }
+        second_line = "Total visit : "+count;
+      }
+      else
+      {
+        var name = props.DISTRICT;
+
+      }
+    }
+      this._div.innerHTML = '<h4>' +  (props ?
+        '<b>' + name+ '</b></h4><br />'+second_line
+        : 'Hover over a district/vdc');
+    };
+
+    info.addTo(map);
+
+
+    // get color depending on population density value
+    function getColor(d) {
+      return d > 1000 ? '#800026' :
+             d > 500  ? '#BD0026' :
+             d > 200  ? '#E31A1C' :
+             d > 100  ? '#FC4E2A' :
+             d > 50   ? '#FD8D3C' :
+             d > 20   ? '#FEB24C' :
+             d > 10   ? '#FED976' :
+                        '#FFEDA0';
+    }
+
+    function style(feature) {
+      return {
+        weight: 2,
+        opacity: 1,
+        color: 'white',
+        dashArray: '3',
+        fillOpacity: 0.7,
+        fillColor: getColor(feature.properties.density)
+      };
+    }
+
+    function highlightFeature(e) {
+      var layer = e.target;
+
+      layer.setStyle({
+        weight: 5,
+        color: '#666',
+        dashArray: '',
+        fillOpacity: 0.7
+      });
+
+      if (!L.Browser.ie && !L.Browser.opera) {
+        layer.bringToFront();
+      }
+
+      info.update(layer.feature.properties);
+    }
+
+    var geojson;
+
+    function resetHighlight(e) {
+      geojson.resetStyle(e.target);
+      info.update();
+    }
+
+    function zoomToFeature(e) {
+      var layer = e.target;
+      
+      try{
+        if(current_district == layer.feature.properties.DISTRICT || layer.feature.properties.DISTRICT == undefined)
+      {
+        return;
+      }
+      map.removeLayer(vdc_layer);
+    }
+    catch(e){}
+
+      map.fitBounds(e.target.getBounds());
+      // if(current_district == layer.feature.properties.DISTRICT)
+      // {
+      //   return;
+      // }
+
+        current_district = layer.feature.properties.DISTRICT;
+        update_data();
+      var  url = "/api/district-layer/"+layer.feature.properties.DISTRICT;
+    $.get(url,function(vdc_data){
+            vdc_layer = L.geoJson(JSON.parse(vdc_data), {
+      style: style,
+      onEachFeature: onEachFeature,
+      click: (function(e){})
+    }).addTo(map);
+
+    });
+
+
+    } 
+
+    function onEachFeature(feature, layer) {
+      layer.on({
+        mouseover: highlightFeature,
+        mouseout: resetHighlight,
+        click: zoomToFeature
+      });
+    }
+
+    geojson = L.geoJson(statesData, {
+      style: style,
+      onEachFeature: onEachFeature
+    }).addTo(map);
+    map.fitBounds(geojson.getBounds());
+
+    map.attributionControl.addAttribution('Surveillance &copy; <a href="http://dhulikhelhospital.org/">Dhulikhel Hospital</a>');
+
+
+    // var legend = L.control({position: 'bottomright'});
+
+    // legend.onAdd = function (map) {
+
+    //   var div = L.DomUtil.create('div', 'info legend'),
+    //     grades = [0, 10, 20, 50, 100, 200, 500, 1000],
+    //     labels = [],
+    //     from, to;
+
+    //   for (var i = 0; i < grades.length; i++) {
+    //     from = grades[i];
+    //     to = grades[i + 1];
+
+    //     labels.push(
+    //       '<i style="background:' + getColor(from + 1) + '"></i> ' +
+    //       from + (to ? '&ndash;' + to : '+'));
+    //   }
+
+    //   div.innerHTML = labels.join('<br>');
+    //   return div;
+    // };
+
+    // legend.addTo(map);
+
+  </script>
+  </div>
+ 
+  </div>
+
+{% endblock content %}
+
+
+{% block javascript %}
+{{block.super}}
+
+<script src="/static/plugins/select2/select2.full.min.js"></script>
+<script>
+
+    $("#group_type").select2();
+    $("#outreach").select2();
+    $("#district").select2();
+    $("#lags").select2();
+    // $("#district_container").hide();
+    // $("#vdc_container").hide();
+
+
+    var end_date = moment().format('MM/DD/YYYY');
+    var start_date = moment().subtract(29, 'days').format('MM/DD/YYYY');
+    var default_daterange = start_date+"-"+end_date;
+    $('#date_range').val(default_daterange);
+      $('#date_range').daterangepicker(
+{
+    locale: {
+      format: 'MM/DD/YYYY'
+    },
+    "startDate": start_date,
+    "endDate": end_date
+});
+
+
+$("#district").change(function(){
+  var selected_district = $("#district").val();
+  var request_url = "/api/vdc-list/"+selected_district+"/"
+  $.get(request_url,function(data){
+    var options_html = "";
+    var vdc_list = JSON.parse(data);
+    for(var i=0;i<vdc_list.length;i++){
+      options_html += "<option value='"+vdc_list[i].id +"'>"+vdc_list[i].name+"</option>";
+    }
+    $("#vdc").html(options_html);
+    $("#vdc").select2();
+  });
+});
+
+
+$("#diagnosis_group").change(function(){
+  var selected_group = $("#diagnosis_group").val();
+  var request_url = "/api/icd-list/"+selected_group+"/"
+  $.get(request_url,function(data){
+    var options_html = '<option value="-1">All</option>';
+    var icd_list = JSON.parse(data);
+    for(var i=0;i<icd_list.length;i++){
+      options_html += "<option value='"+icd_list[i].id +"'>"+icd_list[i].name+"</option>";
+    }
+    $("#diagnosis").html(options_html);
+    $("#diagnosis").select2();
+  });
+});
+
+
+$("#outreach, #diagnosis, #date_picker").on("change",function(){
+update_data();
+});
+
+
+function get_color(index){
+  var color_list = ["#800000","#FF0000","#808000","#FFFF00","#008000","#00FF00","#008080","#00FFFF","#000080"];
+  return color_list[index%9];
+}
+
+function update_data(){
+  if(current_district ==undefined){return;}
+  var outreach = $("#outreach").val();
+  // var date_value = $("#date_picker").val();
+  var diagnosis_group = $("#diagnosis_group").val();
+  var diagnosis = $("#diagnosis").val();
+  var daterange = $('#date_range').val().split("-");
+  var start_date = daterange[0];
+  var end_date = daterange[1];
+
+  var post_data = {};
+  post_data["start_date"] = start_date
+  post_data["end_date"] = end_date
+  post_data["outreach"] = outreach;
+  post_data["icd"] = diagnosis;
+  post_data["group"] = diagnosis_group;
+  // post_data["date"] = date_value;
+  post_data["district"] = current_district;
+
+
+  var post_url = "/report/mapping/";
+
+  $.post(post_url,post_data, function(result){
+    patient_visit = JSON.parse(result);
+  });
+
+}
+
+
+
+</script>
+<script type="text/javascript" src="/static/assets/js/canvasjs.min.js"></script>
+  <script type="text/javascript">
+  // update_data();
+ 
+</script>
+{% endblock  %}

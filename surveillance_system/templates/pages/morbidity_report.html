@@ -1,0 +1,251 @@
+{% extends "base1.html" %}
+{% load static %}
+
+{% block title %}Data Quality Report{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/plugins/select2/select2.min.css">
+ <style type="text/css">
+   @media print {
+                .main-sidebar {display: none;}
+                .filters {display: none;}
+                .print_area {display: block;}
+            }
+ </style>
+{{block.super}}
+{% endblock %}
+
+{% block content %}
+
+  <div class="row filters">
+      <div class="col-sm-3">
+    <div class="form-group">
+                <label>Date range:</label>
+
+                <div class="input-group">
+                  <div class="input-group-addon">
+                    <i class="fa fa-calendar"></i>
+                  </div>
+                  <input type="text" class="form-control pull-right" id="date_range">
+                </div>
+                <!-- /.input group -->
+              </div>
+    </div>
+ 
+        <div class="col-sm-3" id="outreach_container">
+
+    <div class="form-group">
+                <label>Outreach Center</label>
+                <select class="form-control select2" id="outreach" data-placeholder="Select a outreach center" style="width: 100%;">
+                {% for org in organizations %}
+    
+       <option value="{{org.party.party_identifier}}">{{org.organization_name}}</option>
+       {% endfor %}
+
+     </select>
+
+    
+    </div>
+  </div>
+
+  <div class="col-sm-3" id="outreach_container">
+
+  </div>
+
+  <div class="col-sm-3" id="outreach_container">
+    <button class="btn success pull-right" onclick="print_report();">Print</button>
+
+  </div>
+  
+  </div>
+  <div class="row print_area" id="print_area">
+  <div class="col-sm-12">
+  <div class="row">
+  <div class="col-sm-12">
+<center>
+  <h4 id="report_title"></h4>
+</center>
+  </div>
+  </div>
+  <div class="row">
+  <div class="col-sm-12">
+  <div class="box">
+  <div class="box-body">
+      <table class="table table-bordered">
+      <thead>
+                <tr>
+                  <th style="width: 10px" rowspan="2">SN</th>
+                  <th rowspan="2">ICD Code</th>
+                  <th rowspan="2">Name of Disease</th>
+                  <th style="width: 40px" colspan="2">Sex</th>
+                  <th style="width: 40px" colspan="5">Age Group</th>
+                  <th style="width: 40px" rowspan="2">Total</th>
+                </tr>
+                <tr>
+                  <th>Male</th>
+                  <th>Female</th>
+                  <th>0-4</th>
+                  <th>5-14</th>
+                  <th>15-49</th>
+                  <th>50-65</th>
+                  <th>65+</th>
+                </tr>
+                </thead>
+                <tbody id="table_body">
+                  
+                </tbody>
+              </table>
+              </div>
+              </div>
+  
+
+
+  </div>
+ 
+  </div>
+  </div>
+  </div>
+
+{% endblock content %}
+
+
+{% block javascript %}
+{{block.super}}
+
+<script src="/static/plugins/select2/select2.full.min.js"></script>
+
+<script type="text/javascript">
+      //Initialize Select2 Elements
+    var end_date = moment().format('MM/DD/YYYY');
+    var start_date = moment().subtract(29, 'days').format('MM/DD/YYYY');
+    var default_daterange = start_date+"-"+end_date;
+    $('#date_range').val(default_daterange);
+    $('#date_range').daterangepicker(
+{
+    locale: {
+      format: 'MM/DD/YYYY'
+    },
+    "startDate": start_date,
+    "endDate": end_date
+});
+
+
+   function print_report() {
+            //Get the HTML of div
+             var old_date_range = $('#date_range').val().split("-");
+            var divElements = document.getElementById("print_area").innerHTML;
+            //Get the HTML of whole page
+            var oldPage = document.body.innerHTML;
+
+            //Reset the page's HTML with div's HTML only
+            document.body.innerHTML = 
+              "<html><head><title></title></head><body>" + 
+              divElements + "</body>";
+
+            //Print Page
+            window.print();
+
+            //Restore orignal HTML
+            document.body.innerHTML = oldPage;
+            $('#date_range').val(old_date_range.join("-"));
+    $('#date_range').daterangepicker(
+{
+    locale: {
+      format: 'MM/DD/YYYY'
+    },
+    "startDate": old_date_range[0],
+    "endDate": old_date_range[1]
+});
+        }
+   // function print_report(data) 
+   //  {
+   //      var mywindow = window.open('', 'my div', 'height=400,width=600');
+   //      mywindow.document.write('<html><head><title>my div</title>');
+   //      /*optional stylesheet*/ 
+   //      mywindow.document.write(document.head.innerHTML);
+   //      mywindow.document.write('</head><body >');
+   //      mywindow.document.write(document.getElementById("print_area").innerHTML);
+   //      mywindow.document.write('</body></html>');
+
+   //      mywindow.document.close(); // necessary for IE >= 10
+   //      mywindow.focus(); // necessary for IE >= 10
+
+   //      mywindow.print();
+   //      mywindow.close();
+
+   //      return true;
+   //  }
+
+</script>
+<script>
+function update_title(){
+  var outreach = $('#outreach option:selected').text();
+var daterange = $('#date_range').val().split("-");
+  var start_date = daterange[0];
+  var end_date = daterange[1];
+$("#report_title").text("Morbidity report for "+outreach+" from "+start_date + " to "+end_date);
+}
+$("#outreach, #date_range").on("change",function(){
+update_data();
+
+});
+
+function update_data(){
+  update_title();
+
+  var outreach = $("#outreach").val();
+  var post_url = "/report/morbidity/";
+  var daterange = $('#date_range').val().split("-");
+  var start_date = daterange[0];
+  var end_date = daterange[1];
+
+  var post_data = {outreach:outreach, start_date:start_date, end_date:end_date};
+
+  $.post(post_url,post_data, function(result){
+    update_table(JSON.parse(result));
+  });
+
+}
+
+  
+function update_table(morbidity_data)
+{
+  var table_body_html = "";
+  // var sn = 1;
+  for(var i=0;i<morbidity_data.length;i++)
+  {
+    var group_item = morbidity_data[i];
+    var group_name = group_item.group_name;
+    var results = group_item.results;
+    if(results.length>0)
+    table_body_html += "<tr><td colspan='11'><b>"+group_name+"</b></td></tr>";
+
+    for(var j=0;j<results.length;j++)
+    {
+      var item = results[j];      table_body_html += "<tr>";
+      table_body_html += "<td>"+item.sn+"</td>";
+      table_body_html += "<td>"+item.icd_code+"</td>";
+      table_body_html += "<td>"+item.disease_name+"</td>";
+      table_body_html += "<td>"+item.male_count+"</td>";
+      table_body_html += "<td>"+item.female_count+"</td>";
+      table_body_html += "<td>"+item.age_group[0]+"</td>";
+      table_body_html += "<td>"+item.age_group[1]+"</td>";
+      table_body_html += "<td>"+item.age_group[2]+"</td>";
+      table_body_html += "<td>"+item.age_group[3]+"</td>";
+      table_body_html += "<td>"+item.age_group[4]+"</td>";
+      table_body_html += "<td>"+item.total+"</td>";
+      table_body_html += "</tr>";
+    }
+  }
+  $("#table_body").html(table_body_html);
+}
+
+
+
+</script>
+<script type="text/javascript" src="/static/assets/js/canvasjs.min.js"></script>
+  <script type="text/javascript">
+  update_data();
+ 
+</script>
+{% endblock  %}

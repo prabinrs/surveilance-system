@@ -1,0 +1,12 @@
+from __future__ import unicode_literals
+
+from django.apps import AppConfig
+
+
+<<<<<<< HEAD
+class HealthActivityConfig(AppConfig):
+    name = 'health_activity'
+=======
+class AnalyticsConfig(AppConfig):
+    name = 'analytics'
+>>>>>>> 46545c6cb98e4e4b5b96a29928580666e7283bf0

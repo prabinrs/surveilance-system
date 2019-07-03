@@ -1,0 +1,129 @@
+{% extends "base1.html" %}
+{% load static %}
+
+{% block title %}Patients Visit Table{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/plugins/select2/select2.min.css">
+<link rel="stylesheet" href="/static/plugins/datatables/dataTables.bootstrap.css">
+
+{{block.super}}
+{% endblock %}
+
+{% block content %}
+{% include "pages/top_filters.html" %}
+  <div class="row">
+  <div class="col-sm-12">
+  <table id="patient_table" class="table table-bordered table-striped">
+<thead>
+  <tr>
+    <th>S.N.</th>
+    <th>Visit Date</th>
+    <th>Submitted Date</th>
+    <th>District</th>
+    <th>Patient Id</th>
+    <th>Sex</th>
+    <th>Age</th>
+    <th>Diagnosis</th>
+  </tr>
+  </thead>
+  <tbody id="table_content">
+ 
+  </tbody>
+</table>
+  </div>
+ 
+  </div>
+
+<br/>
+<hr/>
+{% endblock content %}
+
+
+{% block javascript %}
+{{block.super}}
+
+<script src="/static/plugins/select2/select2.full.min.js"></script>
+<script src="/static/plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="/static/plugins/datatables/dataTables.bootstrap.min.js"></script>
+<script type="text/javascript">
+    var end_date = moment().format('MM/DD/YYYY');
+    var start_date = moment().subtract(29, 'days').format('MM/DD/YYYY');
+    var default_daterange = start_date+"-"+end_date;
+    $('#reservation').val(default_daterange);
+
+
+    $("#outreach").select2();
+    $('#reservation').daterangepicker(
+{
+    locale: {
+      format: 'MM/DD/YYYY'
+    },
+    "startDate": start_date,
+    "endDate": end_date
+});
+
+$('#reservation').on('apply.daterangepicker', function(ev, picker) {
+  update_data();
+  // console.log(picker.startDate.format('MM/DD/YYYY'));
+  // console.log(picker.endDate.format('MM/DD/YYYY'));
+});
+$("#outreach").on("change",function(){
+update_data();
+});
+
+
+function update_data(){
+  var daterange = $('#reservation').val().split("-");
+  var start_date = daterange[0];
+  var end_date = daterange[1];
+  var outreaches = $("#outreach").val();
+  if(outreaches==null)
+  {
+    outreaches = [];
+  }
+  var post_url = "/report/patient-visit-table/";
+  
+  var post_data = {start_date:start_date,end_date:end_date, outreaches:JSON.stringify(outreaches)}
+
+  $.post(post_url,post_data, function(result){
+    update_table(JSON.parse(result));
+  });
+
+
+
+  console.log(start_date,end_date);
+}
+
+function update_table(rows){
+  $('#patient_table').dataTable().fnDestroy();
+  var html_str = "";
+for(var i=0;i<rows.length;i++){
+  var row = rows[i];
+  var row_str = "<tr>";
+  row_str += "<td></td>";
+  row_str += "<td>" + moment(row.visit_date).format('MM/DD/YYYY') +"</td>";
+  row_str += "<td>" + moment(row.submitted_date).format('MM/DD/YYYY') +"</td>";
+  row_str += "<td>" + row.district +"</td>";
+  row_str += "<td>" + row.patient_id +"</td>";
+  row_str += "<td>" + row.sex +"</td>";
+  row_str += "<td>" + row.age +"</td>";
+  row_str += "<td>" + row.diagnosis +"</td>";
+  row_str += "</tr>"
+  html_str += row_str;
+}
+$("#table_content").html(html_str);
+var t = $("#patient_table").DataTable({"order": [[ 0, 'desc' ]]
+                });
+
+  t.on( 'order.dt search.dt', function () {
+        t.column(0, {search:'applied', order:'applied'}).nodes().each( function (cell, i) {
+            cell.innerHTML = i+1;
+        } );
+    } ).draw();
+
+}
+update_data();
+</script>
+
+{% endblock  %}

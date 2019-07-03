@@ -1,0 +1,273 @@
+{% extends "base1.html" %}
+{% load static %}
+
+{% block title %}SMS lag Report{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/plugins/select2/select2.min.css">
+
+{{block.super}}
+{% endblock %}
+
+{% block content %}
+
+  <div class="row">
+     <div class="col-sm-4">
+  
+    <div class="form-group">
+                <label>Group By</label>
+                <select class="form-control select2" id="group_type" data-placeholder="Select a district" style="width: 100%;">
+               
+       <option value="institution">Institution</option>
+       <option value="vdc">VDC</option>
+       
+
+     </select>
+</div>
+    
+    </div>
+
+    <div class="col-sm-2" id="district_container">
+  
+    <div class="form-group">
+                <label>Districts</label>
+                <select class="form-control select2" id="district" data-placeholder="Select a district" style="width: 100%;">
+                {% for district in districts %}
+    
+       <option value="{{district.district_code}}">{{district.name}}</option>
+       {% endfor %}
+
+     </select>
+</div>
+    
+    </div>
+
+       <div class="col-sm-2" id="vdc_container">
+  
+    <div class="form-group">
+                <label>VDC</label>
+                <select class="form-control select2" id="vdc" data-placeholder="Select a vdc" style="width: 100%;">
+               
+
+     </select>
+</div>
+    
+    </div>
+
+
+
+    <div class="col-sm-4" id="outreach_container">
+
+    <div class="form-group">
+                <label>Outreach Center</label>
+                <select class="form-control select2" id="outreach" data-placeholder="Select a outreach center" style="width: 100%;">
+                {% for org in organizations %}
+    
+       <option value="{{org.party.party_identifier}}">{{org.organization_name}}</option>
+       {% endfor %}
+
+     </select>
+
+    
+    </div>
+  </div>
+      <div class="col-sm-4">
+
+    <div class="form-group">
+                <label>Lag</label>
+                <select class="form-control select2" id="lag" data-placeholder="Select a lag" style="width: 100%;">
+                {% for lag in lags %}
+    
+       <option value="{{lag}}">{{lag}}</option>
+       {% endfor %}
+
+     </select>
+
+    
+    </div>
+  </div>
+
+  </div>
+
+
+  <div class="row">
+  <div class="col-sm-12">
+  <div id="lag_plot" style="height: 400px; width: 100%;"></div>
+  </div>
+ 
+  </div>
+
+{% endblock content %}
+
+
+{% block javascript %}
+{{block.super}}
+
+<script src="/static/plugins/select2/select2.full.min.js"></script>
+<script>
+
+    $("#group_type").select2();
+    $("#outreach").select2();
+    $("#district").select2();
+    $("#lags").select2();
+    $("#district_container").hide();
+    $("#vdc_container").hide();
+
+$("#district").change(function(){
+  var selected_district = $("#district").val();
+  var request_url = "/api/vdc-list/"+selected_district+"/"
+  $.get(request_url,function(data){
+    var options_html = "";
+    var vdc_list = JSON.parse(data);
+    for(var i=0;i<vdc_list.length;i++){
+      options_html += "<option value='"+vdc_list[i].id +"'>"+vdc_list[i].name+"</option>";
+    }
+    $("#vdc").html(options_html);
+    $("#vdc").select2();
+  });
+});
+$("#outreach, #lag, #vdc").on("change",function(){
+update_data();
+});
+var request_type = "institution";
+$("#group_type").change(function(){
+if($(this).val()=="institution"){
+  request_type = "institution";
+  $("#outreach_container").show();
+  $("#district_container").hide();
+  $("#vdc_container").hide();
+
+}
+else{
+  request_type = "vdc";
+
+  $("#outreach_container").hide();
+  $("#district_container").show();
+  $("#vdc_container").show();
+
+}
+});
+
+function get_color(index){
+  var color_list = ["#800000","#FF0000","#808000","#FFFF00","#008000","#00FF00","#008080","#00FFFF","#000080"];
+  return color_list[index%9];
+}
+
+function update_data(){
+
+  var outreaches = $("#outreach").val();
+   if(request_type=="institution")
+  {
+    var value = $("#outreach").val();
+  }
+  else{
+    var value = $("#vdc").val();
+  }
+  var lag = $("#lag").val();
+  var post_url = "/report/lag-report/";
+  var post_data = {type:request_type,value:value,lag:lag};
+
+  $.post(post_url,post_data, function(result){
+    update_chart(JSON.parse(result));
+  });
+
+}
+
+function generate_chart_data(values)
+{
+ 
+  var data = [];
+  var upper_limit = values.upper_limit;
+  var lower_limit = values.lower_limit;
+  var central_values = values.central;
+
+
+
+  var lines = ["upper_limit", "lower_limit", "central"];
+  for(var j=0;j<lines.length;j++)
+  {
+    var row = values[lines[j]];
+
+
+    var data_points = []
+    for(var i=0;i<row.length;i++)
+  {
+        // if(row[i]!=0)
+    
+        data_points.push({x:(i+1), y:row[i]});
+  }
+
+      var data_item = {
+        type: "line",
+        showInLegend: true,
+        lineThickness: 2,
+        name: lines[j],   
+        markerType: "square",
+        color: get_color(j),
+        dataPoints: data_points
+      };
+      data.push(data_item);
+}
+
+      
+
+
+
+  return data;
+
+ 
+}
+function update_chart(data){
+  var chart = new CanvasJS.Chart("lag_plot",
+    {
+
+      title:{
+        text: "Lag Plot",
+        fontSize: 13
+      },
+      animationEnabled: true,
+      axisX:{
+
+        gridColor: "Silver",
+        tickColor: "silver",
+        valueFormatString: "Week"
+
+      },                        
+                        toolTip:{
+                          shared:true
+                        },
+      theme: "theme2",
+      axisY: {
+        gridColor: "Silver",
+        tickColor: "silver"
+      },
+      legend:{
+        verticalAlign: "center",
+        horizontalAlign: "right"
+      },
+      data: generate_chart_data(data),
+          legend:{
+            cursor:"pointer",
+            itemclick:function(e){
+              if (typeof(e.dataSeries.visible) === "undefined" || e.dataSeries.visible) {
+                e.dataSeries.visible = false;
+              }
+              else{
+                e.dataSeries.visible = true;
+              }
+              chart.render();
+            }
+          }
+    });
+
+chart.render();
+
+}
+
+</script>
+<script type="text/javascript" src="/static/assets/js/canvasjs.min.js"></script>
+  <script type="text/javascript">
+  update_data();
+ 
+</script>
+{% endblock  %}

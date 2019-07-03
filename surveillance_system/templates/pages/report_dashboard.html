@@ -1,0 +1,199 @@
+{% extends "base1.html" %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="/static/plugins/select2/select2.min.css">
+  <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+
+  
+{{block.super}}
+{% endblock %}
+
+{% block content %}
+
+  <div class="row">
+      <div class="col-sm-4">
+    <!-- small box -->
+          <div class="small-box bg-blue">
+            <div class="inner">
+              <h3>{{today_count}}</h3>
+
+              <p>Total SMS reports Today</p>
+            </div>
+            <div class="icon">
+              <i class="ion ion-person-add"></i>
+            </div>
+            <!-- <a href="#" class="small-box-footer">More info <i class="fa fa-arrow-circle-right"></i></a> -->
+          </div>
+    </div>
+      <div class="col-sm-4">
+      <!-- small box -->
+          <div class="small-box bg-green">
+            <div class="inner">
+              <h3>{{week_count}}</h3>
+
+              <p>Total SMS reports in last 7 days</p>
+            </div>
+            <div class="icon">
+              <i class="ion ion-person-add"></i>
+            </div>
+            <!-- <a href="#" class="small-box-footer">More info <i class="fa fa-arrow-circle-right"></i></a> -->
+          </div>
+
+  </div>
+     <div class="col-sm-4">
+     <!-- small box -->
+          <div class="small-box bg-yellow">
+            <div class="inner">
+              <h3>{{month_count}}</h3>
+
+              <p>Total SMS reports in last 30 days</p>
+            </div>
+            <div class="icon">
+              <i class="ion ion-person-add"></i>
+            </div>
+            <!-- <a href="#" class="small-box-footer">More info <i class="fa fa-arrow-circle-right"></i></a> -->
+          </div>
+
+    
+    </div>
+
+    <div class="col-sm-3" id="district_container">
+
+    
+    </div>
+
+     
+
+
+
+
+    
+
+  </div>
+
+    <div class="row">
+        <div class="col-sm-3" id="outreach_container">
+
+  </div>
+       <div class="col-sm-3">
+  
+    
+    </div>
+
+  <div class="col-sm-3" id="vdc_container">
+  
+  
+    </div>
+
+     <div class="col-sm-3">
+ 
+    </div>
+
+
+
+
+
+    <div class="col-sm-4" id="outreach_container">
+
+
+  </div>
+
+
+
+{% endblock content %}
+
+
+{% block javascript %}
+{{block.super}}
+
+<script src="/static/plugins/select2/select2.full.min.js"></script>
+<script>
+
+    $("#group_type").select2();
+    $("#outreach").select2();
+    $("#district").select2();
+    $("#lags").select2();
+    // $("#district_container").hide();
+    // $("#vdc_container").hide();
+var today_date = moment().format('MM/DD/YYYY');
+    $('#date_picker').val(today_date);
+
+      $('#date_picker').datepicker({
+      autoclose: true
+    });
+
+
+$("#district").change(function(){
+  var selected_district = $("#district").val();
+  var request_url = "/api/vdc-list/"+selected_district+"/"
+  $.get(request_url,function(data){
+    var options_html = "";
+    var vdc_list = JSON.parse(data);
+    for(var i=0;i<vdc_list.length;i++){
+      options_html += "<option value='"+vdc_list[i].id +"'>"+vdc_list[i].name+"</option>";
+    }
+    $("#vdc").html(options_html);
+    $("#vdc").select2();
+  });
+});
+
+
+$("#diagnosis_group").change(function(){
+  var selected_group = $("#diagnosis_group").val();
+  var request_url = "/api/icd-list/"+selected_group+"/"
+  $.get(request_url,function(data){
+    var options_html = '<option value="-1">All</option>';
+    var icd_list = JSON.parse(data);
+    for(var i=0;i<icd_list.length;i++){
+      options_html += "<option value='"+icd_list[i].id +"'>"+icd_list[i].name+"</option>";
+    }
+    $("#diagnosis").html(options_html);
+    $("#diagnosis").select2();
+  });
+});
+
+
+$("#outreach, #diagnosis, #date_picker").on("change",function(){
+update_data();
+});
+
+
+function get_color(index){
+  var color_list = ["#800000","#FF0000","#808000","#FFFF00","#008000","#00FF00","#008080","#00FFFF","#000080"];
+  return color_list[index%9];
+}
+
+function update_data(){
+  if(current_district ==undefined){return;}
+  var outreach = $("#outreach").val();
+  var date_value = $("#date_picker").val();
+  var diagnosis_group = $("#diagnosis_group").val();
+  var diagnosis = $("#diagnosis").val();
+  var post_data = {};
+  post_data["outreach"] = outreach;
+  post_data["icd"] = diagnosis;
+  post_data["group"] = diagnosis_group;
+  post_data["date"] = date_value;
+  post_data["district"] = current_district;
+
+
+  var post_url = "/report/mapping/";
+
+  $.post(post_url,post_data, function(result){
+    patient_visit = JSON.parse(result);
+  });
+
+}
+
+
+
+</script>
+<script type="text/javascript" src="/static/assets/js/canvasjs.min.js"></script>
+  <script type="text/javascript">
+  // update_data();
+ 
+</script>
+{% endblock  %}

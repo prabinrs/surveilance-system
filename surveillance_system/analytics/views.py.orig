@@ -1,0 +1,19 @@
+<<<<<<< HEAD
+from django.views.generic import View
+from django.shortcuts import render
+from django.template import RequestContext
+from django.http import HttpResponse
+import json
+
+
+
+class AnalyticsHome(View):
+    template_name = 'analytics/home.html'
+
+    def get(self, request, *args, **kwargs):
+    	return render(request,self.template_name, {})
+=======
+from django.shortcuts import render
+
+# Create your views here.
+>>>>>>> 46545c6cb98e4e4b5b96a29928580666e7283bf0

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Surveillance System{% endblock %}
+{% block css %}
+  {{block.super}}
+
+    {% endblock %}
+
+{% block content %}
+<div class="row">
+{% verbatim %}
+<div class="col-sm-4"  ng-app="coAccountApp">
+</div>
+<div class="col-sm-8"  ng-app="coAccountApp">
+</div>
+</div>
+{% endverbatim %}
+
+</div>
+{% endblock content %}
+
+{% block javascript %}
+	{{block.super}}
+{%endblock javascript %}
+
