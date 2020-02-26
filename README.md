@@ -45,3 +45,7 @@ To run a celery worker:
 
     cd surveillance_system
     celery -A surveillance_system.taskapp worker -l info
+    
+**Contribution**
+Prabin Raj Shakya 
+Biraj Neupane
